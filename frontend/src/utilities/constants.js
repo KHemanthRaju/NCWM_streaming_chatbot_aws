@@ -8,7 +8,7 @@ export const WEBSOCKET_API = process.env.REACT_APP_WEBSOCKET_API || 'wss://t8lev
 export const HTTP_CHAT_API = process.env.REACT_APP_HTTP_CHAT_API || 'https://3lxrzqoya6yauxag5m2dzm3dbq0fythf.lambda-url.us-west-2.on.aws/';
 
 // REST API endpoint for admin operations (file management, analytics)
-export const DOCUMENTS_API = process.env.REACT_APP_API_ENDPOINT || process.env.REACT_APP_ANALYTICS_API || 'https://tuvw7wkl4l.execute-api.us-west-2.amazonaws.com/prod/';
+export const DOCUMENTS_API = process.env.REACT_APP_API_ENDPOINT || process.env.REACT_APP_ANALYTICS_API || 'https://8gy1gg6r12.execute-api.us-west-2.amazonaws.com/prod/';
 
 // Feedback API endpoint
 export const FEEDBACK_API = `${DOCUMENTS_API}feedback`.replace('//', '/').replace(':/', '://');

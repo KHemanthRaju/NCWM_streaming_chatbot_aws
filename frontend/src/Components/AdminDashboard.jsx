@@ -74,7 +74,10 @@ function AdminDashboard() {
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
+      console.log('[DASHBOARD] Fetching analytics...');
+
       const token = await getIdToken();
+      console.log('[DASHBOARD] Got token:', token ? 'Yes' : 'No');
 
       // Fetch data for the last 7 days
       const promises = [];
@@ -96,22 +99,28 @@ function AdminDashboard() {
             date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
             queries: response.data.user_count || 0,
             rawData: response.data
-          })).catch(() => ({
-            date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-            queries: 0,
-            rawData: null
-          }))
+          })).catch((err) => {
+            console.error('[DASHBOARD] Error fetching data for', dateStr, err);
+            return {
+              date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+              queries: 0,
+              rawData: null
+            };
+          })
         );
       }
 
       const results = await Promise.all(promises);
       setUsageTrends(results);
+      console.log('[DASHBOARD] Usage trends:', results);
 
       // Fetch today's data for the metric cards
+      console.log('[DASHBOARD] Fetching today data from:', ANALYTICS_API);
       const { data } = await axios.get(ANALYTICS_API, {
         params: { timeframe: 'today' },
         headers: { Authorization: `Bearer ${token}` },
       });
+      console.log('[DASHBOARD] Today data received:', data);
 
       // Calculate total queries including neutral (no feedback) conversations
       const totalSentiment = (data.sentiment?.positive || 0) +
@@ -127,7 +136,9 @@ function AdminDashboard() {
         conversations: data.conversations || []
       });
     } catch (err) {
-      console.error("Failed to fetch analytics:", err);
+      console.error("[DASHBOARD] Failed to fetch analytics:", err);
+      console.error("[DASHBOARD] Error details:", err.response?.data || err.message);
+
       // Set empty trends data on error
       const emptyTrends = [];
       for (let i = 6; i >= 0; i--) {
@@ -139,7 +150,11 @@ function AdminDashboard() {
         });
       }
       setUsageTrends(emptyTrends);
+
+      // Show error to user
+      alert(`Failed to load analytics data. Please check console for details.\nError: ${err.message}`);
     } finally {
+      console.log('[DASHBOARD] Loading complete');
       setLoading(false);
     }
   };
