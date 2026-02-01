@@ -17,9 +17,10 @@ import {
   ThumbDown as ThumbDownIcon
 } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
+import ReactMarkdown from "react-markdown";
 import PdfIcon from "../Assets/pdf_logo.svg";
 import MHFALogo from "../Assets/mhfa_logo.png";
-import { DOCUMENTS_API } from "../utilities/constants";
+import { DOCUMENTS_API, ALLOW_MARKDOWN_BOT } from "../utilities/constants";
 import axios from "axios";
 
 function BotFileCheckReply({ message, fileName, fileStatus, citations, isLoading, messageId, sessionId, onFeedback }) {
@@ -221,9 +222,9 @@ function BotFileCheckReply({ message, fileName, fileStatus, citations, isLoading
     );
   }
 
-  // Use timeout=0 after first render to enable instant streaming updates
+  // Use timeout=0 after first render to enable instant streaming updates without jitter
   return (
-    <Fade in={true} timeout={hasFadedIn.current ? 0 : 300}>
+    <Fade in={true} timeout={0} appear={!hasFadedIn.current}>
       <Box display="flex" alignItems="flex-start" mb={2}>
         <Box
           sx={{
@@ -333,19 +334,84 @@ function BotFileCheckReply({ message, fileName, fileStatus, citations, isLoading
             </Box>
           ) : (
             <Box>
-              <Typography
-                variant="body1"
-                component="div"
-                sx={{
-                  fontFamily: 'Calibri, Ideal Sans, Arial, sans-serif',
-                  fontSize: { xs: '0.875rem', sm: '0.9rem', md: '0.95rem' },
-                  lineHeight: 1.6,
-                  color: '#000000', // Force black color for visibility
-                  whiteSpace: 'pre-wrap',
-                }}
-              >
-                {renderMessageWithLinks(message)}
-              </Typography>
+              {ALLOW_MARKDOWN_BOT ? (
+                <Box
+                  sx={{
+                    fontFamily: 'Calibri, Ideal Sans, Arial, sans-serif',
+                    fontSize: { xs: '0.875rem', sm: '0.9rem', md: '0.95rem' },
+                    lineHeight: 1.6,
+                    color: '#000000 !important',
+                    '& *': {
+                      color: '#000000 !important',
+                    },
+                    '& h1, & h2, & h3': {
+                      marginTop: '1em',
+                      marginBottom: '0.5em',
+                      fontWeight: 600,
+                      color: `${theme.palette.primary.main} !important`,
+                    },
+                    '& h2': {
+                      fontSize: '1.25rem',
+                      borderBottom: `2px solid ${theme.palette.primary.light}`,
+                      paddingBottom: '0.25em',
+                    },
+                    '& h3': {
+                      fontSize: '1.1rem',
+                    },
+                    '& ul, & ol': {
+                      marginLeft: '1.5em',
+                      marginTop: '0.5em',
+                      marginBottom: '0.5em',
+                      color: '#000000 !important',
+                    },
+                    '& li': {
+                      marginBottom: '0.25em',
+                      color: '#000000 !important',
+                    },
+                    '& p': {
+                      marginBottom: '0.75em',
+                      color: '#000000 !important',
+                    },
+                    '& strong': {
+                      fontWeight: 600,
+                      color: `${theme.palette.primary.dark} !important`,
+                    },
+                    '& a': {
+                      color: `${theme.palette.primary.main} !important`,
+                      textDecoration: 'none',
+                      borderBottom: `2px solid ${theme.palette.primary.main}`,
+                      '&:hover': {
+                        color: `${theme.palette.primary.dark} !important`,
+                        borderBottomColor: theme.palette.primary.dark,
+                      },
+                    },
+                    '& code': {
+                      backgroundColor: theme.palette.grey[100],
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontFamily: 'monospace',
+                      fontSize: '0.9em',
+                      color: '#000000 !important',
+                    },
+                  }}
+                >
+                  <ReactMarkdown>{cleanupText(message)}</ReactMarkdown>
+                </Box>
+              ) : (
+                <Typography
+                  variant="body1"
+                  component="div"
+                  sx={{
+                    fontFamily: 'Calibri, Ideal Sans, Arial, sans-serif',
+                    fontSize: { xs: '0.875rem', sm: '0.9rem', md: '0.95rem' },
+                    lineHeight: 1.6,
+                    color: '#000000',
+                    whiteSpace: 'pre-wrap',
+                  }}
+                >
+                  {renderMessageWithLinks(message)}
+                </Typography>
+              )}
               {citations && citations.length > 0 && (
                 <Box
                   mt={{ xs: 1.5, sm: 2 }}

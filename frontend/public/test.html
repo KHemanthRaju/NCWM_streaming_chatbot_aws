@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Page - React App Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: #2e7d32; }
+        .error { color: #c62828; }
+        button {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Amplify App Diagnostic Test</h1>
+
+    <div class="test-box">
+        <h2>✅ This Test Page Loaded Successfully</h2>
+        <p>If you can see this page, Amplify is serving static content correctly.</p>
+    </div>
+
+    <div class="test-box">
+        <h2>JavaScript Test</h2>
+        <p id="js-test" class="error">❌ JavaScript NOT running</p>
+    </div>
+
+    <div class="test-box">
+        <h2>React Bundle Test</h2>
+        <p>Attempting to load React bundle...</p>
+        <p id="bundle-test">Testing...</p>
+    </div>
+
+    <div class="test-box">
+        <h2>Navigation Tests</h2>
+        <button onclick="window.location.href='/'">Go to Home (/)</button>
+        <button onclick="window.location.href='/admin'">Go to Admin (/admin)</button>
+        <button onclick="window.location.href='/chat'">Go to Chat (/chat)</button>
+    </div>
+
+    <div class="test-box">
+        <h2>Environment Info</h2>
+        <p><strong>User Agent:</strong> <span id="user-agent"></span></p>
+        <p><strong>URL:</strong> <span id="url"></span></p>
+        <p><strong>Timestamp:</strong> <span id="timestamp"></span></p>
+    </div>
+
+    <script>
+        // Test 1: JavaScript execution
+        document.getElementById('js-test').innerHTML = '✅ JavaScript IS running';
+        document.getElementById('js-test').className = 'success';
+
+        // Test 2: Environment info
+        document.getElementById('user-agent').textContent = navigator.userAgent;
+        document.getElementById('url').textContent = window.location.href;
+        document.getElementById('timestamp').textContent = new Date().toISOString();
+
+        // Test 3: Try to load React bundle
+        fetch('/static/js/main.bfa8ced7.js')
+            .then(response => {
+                if (response.ok) {
+                    document.getElementById('bundle-test').innerHTML = '✅ React bundle loads successfully (HTTP ' + response.status + ')';
+                    document.getElementById('bundle-test').className = 'success';
+                } else {
+                    document.getElementById('bundle-test').innerHTML = '❌ React bundle failed (HTTP ' + response.status + ')';
+                    document.getElementById('bundle-test').className = 'error';
+                }
+            })
+            .catch(err => {
+                document.getElementById('bundle-test').innerHTML = '❌ Error loading bundle: ' + err.message;
+                document.getElementById('bundle-test').className = 'error';
+            });
+
+        console.log('Test page loaded at:', new Date().toISOString());
+        console.log('Window location:', window.location.href);
+    </script>
+</body>
+</html>

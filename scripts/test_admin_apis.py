@@ -15,7 +15,7 @@ CLIENT_ID = "5jtcqorpgvdlpvma3qut8gmbig"
 USERNAME = "hkoneti@asu.edu"
 PASSWORD = "Admin123456!"
 REGION = "us-west-2"
-API_URL = "https://tuvw7wkl4l.execute-api.us-west-2.amazonaws.com/prod"
+API_URL = "https://8gy1gg6r12.execute-api.us-west-2.amazonaws.com/prod"
 
 def get_user_pool_client_id():
     """Get the Cognito User Pool Client ID"""

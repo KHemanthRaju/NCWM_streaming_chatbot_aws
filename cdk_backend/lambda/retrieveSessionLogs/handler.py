@@ -28,6 +28,8 @@ def bad_request(msg):
         "headers": {
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
+            "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
         },
         "body": json.dumps({"error": msg}),
     }
@@ -39,6 +41,8 @@ def ok(body_dict):
         "headers": {
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
+            "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
         },
         "body": json.dumps(body_dict),
     }
@@ -117,19 +121,24 @@ def lambda_handler(event, context):
 
     log("TOTAL items scanned       :", len(items))
 
-    # 4) Fetch user feedback from feedback table
+    # 4) Fetch user feedback from feedback table (if it exists)
     log("Fetching user feedback...")
-    feedback_resp = feedback_table.scan()
-    feedback_items = feedback_resp.get("Items", [])
+    feedback_items = []
+    try:
+        feedback_resp = feedback_table.scan()
+        feedback_items = feedback_resp.get("Items", [])
 
-    # Continue scanning if there are more feedback items
-    while "LastEvaluatedKey" in feedback_resp:
-        feedback_resp = feedback_table.scan(
-            ExclusiveStartKey=feedback_resp["LastEvaluatedKey"]
-        )
-        feedback_items.extend(feedback_resp.get("Items", []))
+        # Continue scanning if there are more feedback items
+        while "LastEvaluatedKey" in feedback_resp:
+            feedback_resp = feedback_table.scan(
+                ExclusiveStartKey=feedback_resp["LastEvaluatedKey"]
+            )
+            feedback_items.extend(feedback_resp.get("Items", []))
 
-    log(f"Total feedback items      : {len(feedback_items)}")
+        log(f"Total feedback items      : {len(feedback_items)}")
+    except Exception as e:
+        log(f"Warning: Could not fetch feedback (table may not exist): {e}")
+        log("Continuing without feedback data...")
 
     # Build feedback map: session_id -> list of feedback (positive/negative)
     # Each session can have multiple messages with feedback

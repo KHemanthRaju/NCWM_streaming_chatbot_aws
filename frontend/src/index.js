@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
+import ErrorBoundary from './Components/ErrorBoundary';
 
 // Suppress ResizeObserver loop errors in development
 const resizeObserverErrHandler = (err) => {
@@ -22,6 +23,8 @@ window.addEventListener('error', resizeObserverErrHandler);
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>
 );

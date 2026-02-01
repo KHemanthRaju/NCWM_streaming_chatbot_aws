@@ -111,8 +111,10 @@ function ChatBody() {
 
   /* ────────────────���───────────── auto-scroll ────────────────────────── */
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    // Use instant scroll during streaming to avoid jitter/shake
+    const behavior = processing ? "auto" : "smooth";
+    scrollRef.current?.scrollIntoView({ behavior, block: "end" });
+  }, [messages, processing]);
 
   /* ──────────────────── Handle initial query from recommendations ────── */
   useEffect(() => {
@@ -259,9 +261,9 @@ function ChatBody() {
                   )
                 );
 
-                // Force scroll to bottom on each chunk for visible streaming
+                // Force instant scroll to bottom on each chunk to avoid shake/jitter
                 if (scrollRef.current) {
-                  scrollRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                  scrollRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
                 }
               });
             } else if (data.type === 'metadata') {

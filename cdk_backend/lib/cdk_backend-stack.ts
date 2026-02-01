@@ -334,7 +334,7 @@ export class LearningNavigatorStack extends cdk.Stack {
         LOG_CLASSIFIER_FN_NAME: logclassifier.functionName,
         // Streaming handler environment variables
         KNOWLEDGE_BASE_ID: kb.knowledgeBaseId,
-        MODEL_ID: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+        MODEL_ID: 'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
         SESSION_LOGS_TABLE: sessionLogsTable.tableName,
         MAX_TOKENS: '4096',
         TEMPERATURE: '0.1'
@@ -639,7 +639,14 @@ export class LearningNavigatorStack extends cdk.Stack {
       defaultCorsPreflightOptions: {
         allowOrigins: apigateway.Cors.ALL_ORIGINS,
         allowMethods: apigateway.Cors.ALL_METHODS,
-        allowHeaders: apigateway.Cors.DEFAULT_HEADERS,
+        allowHeaders: [
+          'Content-Type',
+          'X-Amz-Date',
+          'Authorization',
+          'X-Api-Key',
+          'X-Amz-Security-Token',
+          'X-Amz-User-Agent'
+        ],
       },
     });
 
