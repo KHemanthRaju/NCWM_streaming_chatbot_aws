@@ -8,16 +8,16 @@ export const WEBSOCKET_API = process.env.REACT_APP_WEBSOCKET_API || 'wss://t8lev
 export const HTTP_CHAT_API = process.env.REACT_APP_HTTP_CHAT_API || 'https://3lxrzqoya6yauxag5m2dzm3dbq0fythf.lambda-url.us-west-2.on.aws/';
 
 // REST API endpoint for admin operations (file management, analytics)
-export const DOCUMENTS_API = process.env.REACT_APP_ANALYTICS_API || 'https://tuvw7wkl4l.execute-api.us-west-2.amazonaws.com/prod/';
+export const DOCUMENTS_API = process.env.REACT_APP_API_ENDPOINT || process.env.REACT_APP_ANALYTICS_API || 'https://tuvw7wkl4l.execute-api.us-west-2.amazonaws.com/prod/';
 
 // Feedback API endpoint
 export const FEEDBACK_API = `${DOCUMENTS_API}feedback`.replace('//', '/').replace(':/', '://');
 
 // Cognito configuration for authentication
 export const COGNITO_CONFIG = {
-  userPoolId: process.env.REACT_APP_COGNITO_USER_POOL_ID || 'us-west-2_F4rwE0BpC',
-  userPoolWebClientId: process.env.REACT_APP_COGNITO_CLIENT_ID || '42vl26qpi5kkch11ejg1747mj8',
-  region: process.env.REACT_APP_AWS_REGION || 'us-west-2'
+  userPoolId: process.env.REACT_APP_COGNITO_USER_POOL_ID || 'us-west-2_7g0uevt9j',
+  userPoolWebClientId: process.env.REACT_APP_COGNITO_CLIENT_ID || '5jtcqorpgvdlpvma3qut8gmbig',
+  region: process.env.REACT_APP_COGNITO_REGION || process.env.REACT_APP_AWS_REGION || 'us-west-2'
 };
 
 // Feature flags

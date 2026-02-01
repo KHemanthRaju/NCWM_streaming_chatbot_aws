@@ -10,8 +10,8 @@ import requests
 from datetime import datetime
 
 # Configuration
-USER_POOL_ID = "us-west-2_F4rwE0BpC"
-CLIENT_ID = "42vl26qpi5kkch11ejg1747mj8"
+USER_POOL_ID = "us-west-2_7g0uevt9j"
+CLIENT_ID = "5jtcqorpgvdlpvma3qut8gmbig"
 USERNAME = "hkoneti@asu.edu"
 PASSWORD = "Admin123456!"
 REGION = "us-west-2"

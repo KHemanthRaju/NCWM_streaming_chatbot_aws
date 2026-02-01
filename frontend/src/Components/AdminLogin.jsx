@@ -287,12 +287,38 @@ function AdminLogin() {
           <Button
             fullWidth
             variant="outlined"
-            onClick={() => {
-              // Set guest mode flags
-              localStorage.setItem("guestMode", "true");
-              localStorage.setItem("accessToken", "guest-demo-token");
-              localStorage.setItem("idToken", "guest-demo-token");
-              navigate("/admin-dashboard", { replace: true });
+            onClick={async () => {
+              setLoginError("");
+              try {
+                // Sign out any existing session
+                try {
+                  await signOut();
+                } catch (e) {
+                  // Ignore errors
+                }
+
+                // Automatically sign in as guest user
+                const { isSignedIn } = await signIn({
+                  username: "guest@mhfa-demo.local",
+                  password: "GuestDemo2026!"
+                });
+
+                if (isSignedIn) {
+                  const session = await fetchAuthSession();
+                  const accessToken = session.tokens?.accessToken?.toString();
+                  const idToken = session.tokens?.idToken?.toString();
+
+                  if (accessToken && idToken) {
+                    localStorage.setItem("accessToken", accessToken);
+                    localStorage.setItem("idToken", idToken);
+                    localStorage.setItem("guestMode", "true");
+                    navigate("/admin-dashboard", { replace: true, state: { loginSuccess: true } });
+                  }
+                }
+              } catch (error) {
+                console.error('Guest login error:', error);
+                setLoginError("Failed to start guest session. Please try again.");
+              }
             }}
             sx={{
               borderColor: AccessibleColors.primary.light,

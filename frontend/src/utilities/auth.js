@@ -7,12 +7,6 @@ import { fetchAuthSession, signOut } from 'aws-amplify/auth';
  */
 export async function getIdToken() {
   try {
-    // Check if in guest mode first
-    const guestMode = localStorage.getItem("guestMode");
-    if (guestMode === "true") {
-      return "guest-demo-token";
-    }
-
     // Try to fetch fresh token from Amplify
     try {
       const session = await fetchAuthSession({ forceRefresh: true });
@@ -50,12 +44,6 @@ export async function getIdToken() {
  */
 export async function getAccessToken() {
   try {
-    // Check if in guest mode first
-    const guestMode = localStorage.getItem("guestMode");
-    if (guestMode === "true") {
-      return "guest-demo-token";
-    }
-
     // Try to fetch fresh token from Amplify
     try {
       const session = await fetchAuthSession({ forceRefresh: true });
