@@ -1,0 +1,229 @@
+import os
+import json
+from datetime import datetime, timedelta
+from collections import defaultdict
+
+import boto3
+from boto3.dynamodb.conditions import Attr
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Env & AWS clients
+# ──────────────────────────────────────────────────────────────────────────────
+TABLE_NAME = os.environ["DYNAMODB_TABLE"]
+FEEDBACK_TABLE_NAME = os.environ.get("FEEDBACK_TABLE", "NCMWResponseFeedback")
+ddb   = boto3.resource("dynamodb")
+table = ddb.Table(TABLE_NAME)
+feedback_table = ddb.Table(FEEDBACK_TABLE_NAME)
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Helpers
+# ──────────────────────────────────────────────────────────────────────────────
+def log(*msg):
+    print("[ANALYTICS]", *msg)
+
+
+def bad_request(msg):
+    return {
+        "statusCode": 400,
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+        },
+        "body": json.dumps({"error": msg}),
+    }
+
+
+def ok(body_dict):
+    return {
+        "statusCode": 200,
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+        },
+        "body": json.dumps(body_dict),
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Lambda entry-point
+# ──────────────────────────────────────────────────────────────────────────────
+def lambda_handler(event, context):
+    log("=== NEW INVOCATION ============================================")
+    log("Raw queryStringParameters :", event.get("queryStringParameters"))
+
+    # 1) Parse timeframe
+    params = event.get("queryStringParameters") or {}
+    tf = (params.get("timeframe") or "today").lower()
+
+    now = datetime.utcnow()
+
+    # Support custom date range
+    if tf == "custom":
+        start_date_str = params.get("start_date")
+        end_date_str = params.get("end_date")
+
+        if not start_date_str or not end_date_str:
+            return bad_request('Custom timeframe requires both start_date and end_date parameters')
+
+        try:
+            # Parse dates in YYYY-MM-DD format
+            start = datetime.strptime(start_date_str, "%Y-%m-%d")
+            end = datetime.strptime(end_date_str, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+        except ValueError as e:
+            return bad_request(f'Invalid date format. Use YYYY-MM-DD: {str(e)}')
+    elif tf == "today":
+        start = datetime(now.year, now.month, now.day)
+        end = now
+    elif tf == "weekly":
+        start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+        end = now
+    elif tf == "monthly":
+        start = datetime(now.year, now.month, 1)
+        end = now
+    elif tf == "yearly":
+        start = datetime(now.year, 1, 1)
+        end = now
+    else:
+        return bad_request(f'Invalid timeframe "{tf}". Use: today, weekly, monthly, yearly, or custom')
+
+    log("Timeframe                 :", tf)
+    log("Start / End UTC           :", start, "/", end)
+
+    # 2) Build filter & projection
+    start_iso, end_iso = start.isoformat(), end.isoformat()
+    filter_exp = Attr("original_ts").between(start_iso, end_iso)
+    projection = "session_id, #loc, category, sentiment, satisfaction_score, #q, #r, original_ts"
+    expr_names = { "#loc": "location", "#q": "query", "#r": "response" }
+
+    # 3) Scan in pages
+    items = []
+    resp = table.scan(
+        FilterExpression=filter_exp,
+        ProjectionExpression=projection,
+        ExpressionAttributeNames=expr_names,
+    )
+    items.extend(resp.get("Items", []))
+    log("Page 1 items              :", len(resp.get("Items", [])))
+
+    while "LastEvaluatedKey" in resp:
+        resp = table.scan(
+            FilterExpression=filter_exp,
+            ProjectionExpression=projection,
+            ExpressionAttributeNames=expr_names,
+            ExclusiveStartKey=resp["LastEvaluatedKey"],
+        )
+        log("…Next page items          :", len(resp.get("Items", [])))
+        items.extend(resp.get("Items", []))
+
+    log("TOTAL items scanned       :", len(items))
+
+    # 4) Fetch user feedback from feedback table
+    log("Fetching user feedback...")
+    feedback_resp = feedback_table.scan()
+    feedback_items = feedback_resp.get("Items", [])
+
+    # Continue scanning if there are more feedback items
+    while "LastEvaluatedKey" in feedback_resp:
+        feedback_resp = feedback_table.scan(
+            ExclusiveStartKey=feedback_resp["LastEvaluatedKey"]
+        )
+        feedback_items.extend(feedback_resp.get("Items", []))
+
+    log(f"Total feedback items      : {len(feedback_items)}")
+
+    # Build feedback map: session_id -> list of feedback (positive/negative)
+    # Each session can have multiple messages with feedback
+    feedback_by_session = defaultdict(list)
+    for fb in feedback_items:
+        session_id = fb.get("session_id")
+        feedback_type = fb.get("feedback")
+        if session_id and feedback_type:
+            feedback_by_session[session_id].append(feedback_type)
+
+    log(f"Feedback map size         : {len(feedback_by_session)}")
+    log(f"Total feedback entries    : {sum(len(fb_list) for fb_list in feedback_by_session.values())}")
+
+    # 5) Aggregate using user feedback (thumbs up/down) with neutral for no feedback
+    sessions = set()
+    loc_counts = defaultdict(int)
+    cat_counts = defaultdict(int)
+    # Count based on user feedback (thumbs up/down) + neutral for no feedback
+    feedback_sentiment_counts = {"positive": 0, "negative": 0, "neutral": 0}
+    satisfaction_scores = []
+    conversations = []
+
+    for it in items:
+        if sid := it.get("session_id"):
+            sessions.add(sid)
+        if loc := it.get("location"):
+            if isinstance(loc, str) and loc:  # Only count valid location strings
+                loc_counts[loc] += 1
+        if cat := it.get("category"):
+            cat_counts[cat] += 1
+        if score := it.get("satisfaction_score"):
+            satisfaction_scores.append(float(score))
+
+        # Get user feedback for this conversation's session
+        session_id = it.get("session_id")
+        timestamp = it.get("original_ts")
+
+        # Check if there's any feedback for this session
+        # If a session has multiple feedback entries, use the most recent one (last in list)
+        user_feedback = None
+        if session_id and session_id in feedback_by_session:
+            session_feedback_list = feedback_by_session[session_id]
+            if session_feedback_list:
+                # Use the last feedback entry for this session
+                user_feedback = session_feedback_list[-1]
+                log(f"Found feedback for session {session_id}: {user_feedback}")
+
+        # Determine sentiment based on user feedback:
+        # - positive: User clicked thumbs up
+        # - negative: User clicked thumbs down
+        # - neutral: User didn't click either (no feedback)
+        sentiment = user_feedback if user_feedback else "neutral"
+
+        # Count the sentiment
+        if sentiment == "positive":
+            feedback_sentiment_counts["positive"] += 1
+        elif sentiment == "negative":
+            feedback_sentiment_counts["negative"] += 1
+        else:
+            feedback_sentiment_counts["neutral"] += 1
+
+        # Build conversation log entry - include ALL conversations
+        conversations.append({
+            "session_id": session_id,
+            "timestamp": timestamp,
+            "query": it.get("query", ""),
+            "response": it.get("response", ""),
+            "category": it.get("category", "Unknown"),
+            "sentiment": sentiment,  # positive (👍), negative (👎), or neutral (no feedback)
+            "satisfaction_score": float(it.get("satisfaction_score", 50))
+        })
+
+    log(f"Feedback counts - Positive: {feedback_sentiment_counts['positive']}, Negative: {feedback_sentiment_counts['negative']}, Neutral: {feedback_sentiment_counts['neutral']}")
+
+    # Calculate average satisfaction
+    avg_satisfaction = sum(satisfaction_scores) / len(satisfaction_scores) if satisfaction_scores else 0
+
+    # Sort conversations by timestamp (most recent first)
+    conversations.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+
+    result = {
+        "timeframe":  tf,
+        "start_date": start.strftime("%Y-%m-%d"),
+        "end_date":   end.strftime("%Y-%m-%d"),
+        "user_count": len(sessions),
+        "locations":  list(loc_counts.keys()),
+        "categories": dict(cat_counts),
+        "sentiment": feedback_sentiment_counts,  # Use user feedback instead of AI sentiment
+        "avg_satisfaction": round(avg_satisfaction, 1),
+        "conversations": conversations[:50]  # Return latest 50 conversations
+    }
+
+    log("Distinct sessions         :", len(sessions))
+    log("Distinct locations        :", len(loc_counts))
+    log("Distinct categories       :", len(cat_counts))
+    log("Returning 200")
+    return ok(result)
